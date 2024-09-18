@@ -6,11 +6,27 @@ import { AppService } from './app.service';
 import { UsersModule } from './users/users.module';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
+import { MailerModule } from '@nestjs-modules/mailer';
 
 @Module({
   imports: [
     UsersModule,
     ConfigModule.forRoot({ isGlobal: true }),
+    MailerModule.forRootAsync({
+      imports: [ConfigModule],
+      useFactory: async (configService: ConfigService) => ({
+        transport: {
+          host: configService.get<string>('MAILER_HOST'),
+          port: configService.get<number>('MAILER_PORT'),
+          secure: configService.get<number>('MAILER_PORT') === 465,
+          auth: {
+            user: configService.get<string>('MAILER_USER'),
+            pass: configService.get<string>('MAILER_PASS'),
+          },
+        },
+      }),
+      inject: [ConfigService],
+    }),
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => ({
