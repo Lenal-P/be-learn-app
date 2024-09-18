@@ -1,12 +1,13 @@
 /* eslint-disable prettier/prettier */
 // user.controller.ts
 
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { CreateUserDto } from 'src/users/dto/create-user.dto';
 import { UpdateUserDto } from 'src/users/dto/update-user.dto';
 import { ForgotPasswordDto } from 'src/users//dto/forgot-password.dto';
 import { ResetPasswordDto } from 'src/users/dto/reset-password.dto';
+import { JwtAuthGuard } from 'src/jwt/jwt-auth.guard';
 
 @Controller('users')
 export class UsersController {
@@ -45,5 +46,11 @@ export class UsersController {
   @Post('reset-password/:otp')
   async resetPassword(@Param('otp') otp: string, @Body() resetPasswordDto: ResetPasswordDto) {
     return this.usersService.resetPassword(otp, resetPasswordDto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get()
+  getProfile() {
+    return { message: 'This route is protected' };
   }
 }

@@ -95,13 +95,9 @@ export class UsersService {
     return `This action returns all users`;
   }
 
-  async findOneByEmail(email: string): Promise<User> {
-    const user = await this.userModel.findOne({ email }).exec();
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
-    return user;
-  }
+  async findOneByEmail(email: string): Promise<User | null> {
+    return this.userModel.findOne({ email }).exec();
+  }  
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   update(id: number, updateUserDto: UpdateUserDto) {
