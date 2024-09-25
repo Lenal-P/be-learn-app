@@ -1,10 +1,10 @@
 /* eslint-disable prettier/prettier */
-// auth.service.ts
 
 import { Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
-import { UsersService } from '../users/users.service';
+import { UsersService } from 'src/users/users.service';
+import { User } from 'src/users/schemas/user.schema';
 
 @Injectable()
 export class AuthService {
@@ -28,5 +28,20 @@ export class AuthService {
     return {
       access_token: this.jwtService.sign(payload),
     };
+  }
+
+  async validateOAuthUser(profile: any): Promise<User> {
+    const { email } = profile;
+    let user = await this.usersService.findOneByEmail(email);
+  
+    if (!user) {
+      const newUser = await this.usersService.create({
+        email,
+        password: 'generated-password',
+      });
+      user = newUser; 
+    }
+    
+    return new User(user); // Trả về DTO
   }
 }

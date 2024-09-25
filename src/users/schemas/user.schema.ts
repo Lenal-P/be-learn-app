@@ -29,6 +29,11 @@ export class User {
 
   @Prop({ type: Date }) 
   resetOtpExpire: Date;
+
+  constructor(user: User) {
+    this._id = user._id.toString();
+    this.email = user.email;
+  }
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

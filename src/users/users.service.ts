@@ -11,14 +11,13 @@ import * as bcrypt from 'bcrypt';
 import { MailerService } from '@nestjs-modules/mailer';
 import { ForgotPasswordDto } from 'src/users/dto/forgot-password.dto';
 import { ResetPasswordDto } from 'src/users/dto/reset-password.dto';
-import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
 export class UsersService {
   [x: string]: any;
   constructor(@InjectModel(User.name) private userModel: Model<UserDocument>, private readonly mailerService: MailerService) { }
 
-  async create(createUserDto: CreateUserDto): Promise<{ _id: string; createdAt: Date }> {
+  async create(createUserDto: CreateUserDto): Promise<User> {
     const { email, password } = createUserDto;
 
     const existingUser = await this.userModel.findOne({ email });
@@ -31,10 +30,7 @@ export class UsersService {
       const hashedPassword = await bcrypt.hash(password, saltRounds);
       const user = await this.userModel.create({ email, password: hashedPassword });
 
-      return {
-        _id: user._id.toString(),
-        createdAt: user.createdAt,
-      };
+      return new User(user);
     } catch (error) {
       console.error('Error hashing password:', error);
       throw new Error('Error creating user');
@@ -43,51 +39,57 @@ export class UsersService {
 
   async forgotPassword(forgotPasswordDto: ForgotPasswordDto): Promise<{ message: string }> {
     const { email } = forgotPasswordDto;
-  
+
     const user = await this.userModel.findOne({ email });
-  
     if (!user) {
       throw new NotFoundException('User not found');
     }
-  
-    const otp = uuidv4(); // Sử dụng UUID làm OTP
+
+    // Kiểm tra xem OTP đã được tạo trước đó chưa và còn hiệu lực không
+    if (user.resetOtp && user.resetOtpExpire.getTime() > Date.now()) {
+      throw new ConflictException('OTP đã được gửi và còn hiệu lực. Vui lòng kiểm tra email của bạn.');
+    }
+
+    // Tạo OTP 6 chữ số
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const otpExpire = Date.now() + 10 * 60 * 1000;
-  
+
     // Lưu OTP và thời gian hết hạn vào cơ sở dữ liệu
     user.resetOtp = otp;
     user.resetOtpExpire = new Date(otpExpire);
-  
+
     await user.save();
-  
+
     // Gửi email chứa mã OTP cho người dùng
     await this.mailerService.sendMail({
       to: user.email,
       subject: 'Cài đặt lại mật khẩu',
       text: `Bạn đã yêu cầu đặt lại mật khẩu. OTP của bạn là ${otp}. Mã này sẽ hết hạn sau 10 phút.`,
     });
-  
+
     return { message: 'OTP gửi thành công' };
   }
 
   async resetPassword(otp: string, resetPasswordDto: ResetPasswordDto): Promise<{ message: string }> {
-    const { newPassword } = resetPasswordDto;
-  
-    // Tìm user theo OTP và kiểm tra OTP còn hiệu lực không
+    const { email, newPassword } = resetPasswordDto;
+
+    // Tìm user theo email và OTP, kiểm tra OTP còn hiệu lực không
     const user = await this.userModel.findOne({
+      email,
       resetOtp: otp,
       resetOtpExpire: { $gt: Date.now() }, // OTP vẫn còn hiệu lực
     });
-  
+
     if (!user) {
       throw new NotFoundException('OTP không hợp lệ hoặc đã hết hạn');
     }
-  
+
     // Mã hóa mật khẩu mới và cập nhật
     user.password = await bcrypt.hash(newPassword, 10);
-    user.resetOtp = undefined;
-    user.resetOtpExpire = undefined;
+    user.resetOtp = undefined; // Xóa OTP sau khi sử dụng
+    user.resetOtpExpire = undefined; // Xóa thời gian hết hạn
     await user.save();
-  
+
     return { message: 'Mật khẩu đã được đặt lại' };
   }
 
@@ -97,7 +99,7 @@ export class UsersService {
 
   async findOneByEmail(email: string): Promise<User | null> {
     return this.userModel.findOne({ email }).exec();
-  }  
+  }
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   update(id: number, updateUserDto: UpdateUserDto) {
