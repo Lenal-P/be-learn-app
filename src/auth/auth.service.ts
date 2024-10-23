@@ -11,7 +11,7 @@ export class AuthService {
   constructor(
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
-  ) {}
+  ) { }
 
   async validateUser(email: string, password: string): Promise<any> {
     const user = await this.usersService.findOneByEmail(email);
@@ -31,17 +31,33 @@ export class AuthService {
   }
 
   async validateOAuthUser(profile: any): Promise<User> {
-    const { email } = profile;
+    const email = profile.emails && profile.emails.length ? profile.emails[0].value : null;
+
+    if (!email) {
+      throw new Error('Email not found in Google profile');
+    }
+
     let user = await this.usersService.findOneByEmail(email);
-  
+
     if (!user) {
+      // Nếu là OAuth user, không truyền mật khẩu hoặc để là null
       const newUser = await this.usersService.create({
         email,
-        password: 'generated-password',
+        password: null,  // Không hash mật khẩu cho người dùng OAuth
       });
-      user = newUser; 
+      user = newUser;
     }
-    
-    return new User(user); // Trả về DTO
+
+    return user;
+  }
+
+  googleLogin(req) {
+    if (!req.user) {
+      return null; // Trả về null nếu không lấy được user
+    }
+    return {
+      message: 'User Info from Google',
+      user: req.user
+    };
   }
 }

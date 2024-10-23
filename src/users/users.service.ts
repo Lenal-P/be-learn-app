@@ -5,7 +5,6 @@ import { UpdateUserDto } from 'src/users/dto/update-user.dto';
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { CreateUserDto } from 'src/users/dto/create-user.dto';
 import { User, UserDocument } from './schemas/user.schema';
 import * as bcrypt from 'bcrypt';
 import { MailerService } from '@nestjs-modules/mailer';
@@ -17,24 +16,22 @@ export class UsersService {
   [x: string]: any;
   constructor(@InjectModel(User.name) private userModel: Model<UserDocument>, private readonly mailerService: MailerService) { }
 
-  async create(createUserDto: CreateUserDto): Promise<User> {
+  async create(createUserDto: { email: string, password: string | null }): Promise<User> {
     const { email, password } = createUserDto;
-
-    const existingUser = await this.userModel.findOne({ email });
-    if (existingUser) {
-      throw new ConflictException('Email already exists');
+    
+    // Kiểm tra nếu password tồn tại (chỉ hash nếu không phải OAuth)
+    let hashedPassword = null;
+    if (password) {
+      const salt = await bcrypt.genSalt(10);
+      hashedPassword = await bcrypt.hash(password, salt);
     }
 
-    try {
-      const saltRounds = 10;
-      const hashedPassword = await bcrypt.hash(password, saltRounds);
-      const user = await this.userModel.create({ email, password: hashedPassword });
+    const createdUser = new this.userModel({
+      email,
+      password: hashedPassword, // Lưu hashedPassword hoặc null
+    });
 
-      return new User(user);
-    } catch (error) {
-      console.error('Error hashing password:', error);
-      throw new Error('Error creating user');
-    }
+    return createdUser.save();
   }
 
   async forgotPassword(forgotPasswordDto: ForgotPasswordDto): Promise<{ message: string }> {
