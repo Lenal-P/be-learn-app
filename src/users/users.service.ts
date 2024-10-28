@@ -16,9 +16,9 @@ export class UsersService {
   [x: string]: any;
   constructor(@InjectModel(User.name) private userModel: Model<UserDocument>, private readonly mailerService: MailerService) { }
 
-  async create(createUserDto: { email: string, password: string | null }): Promise<User> {
-    const { email, password } = createUserDto;
-    
+  async create(createUserDto: { email: string, password: string | null, avatar?: string | null }): Promise<User> {
+    const { email, password, avatar } = createUserDto;
+
     // Kiểm tra nếu password tồn tại (chỉ hash nếu không phải OAuth)
     let hashedPassword = null;
     if (password) {
@@ -29,6 +29,7 @@ export class UsersService {
     const createdUser = new this.userModel({
       email,
       password: hashedPassword, // Lưu hashedPassword hoặc null
+      avatar, // Lưu avatar nếu có
     });
 
     return createdUser.save();

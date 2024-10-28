@@ -25,13 +25,23 @@ export class AuthService {
 
   async login(user: any) {
     const payload = { email: user.email, sub: user._id };
+    const access_token = this.jwtService.sign(payload);
+
+    // Trả về token và thông tin người dùng (không bao gồm mật khẩu)
     return {
-      access_token: this.jwtService.sign(payload),
+      access_token,
+      user: {
+        id: user._id,
+        email: user.email,
+        name: user.name,
+        avatar: user.avatar, // Nếu có
+      },
     };
   }
 
   async validateOAuthUser(profile: any): Promise<User> {
     const email = profile.emails && profile.emails.length ? profile.emails[0].value : null;
+    const avatar = profile.photos && profile.photos.length ? profile.photos[0].value : profile._json.picture;
 
     if (!email) {
       throw new Error('Email not found in Google profile');
@@ -40,24 +50,42 @@ export class AuthService {
     let user = await this.usersService.findOneByEmail(email);
 
     if (!user) {
-      // Nếu là OAuth user, không truyền mật khẩu hoặc để là null
       const newUser = await this.usersService.create({
         email,
         password: null,  // Không hash mật khẩu cho người dùng OAuth
+        avatar, // Lưu avatar vào cơ sở dữ liệu
       });
       user = newUser;
+    } else {
+      // Cập nhật avatar nếu có giá trị mới
+      if (avatar && user.avatar !== avatar) {
+        user.avatar = avatar;
+        await user.save(); // Lưu thay đổi avatar vào cơ sở dữ liệu
+      }
     }
 
     return user;
   }
 
-  googleLogin(req) {
+
+  async googleLogin(req: any) {
     if (!req.user) {
       return null; // Trả về null nếu không lấy được user
     }
+
+    const user = await this.usersService.findOneByEmail(req.user.email); // Lấy lại người dùng từ DB
+
+    const payload = { email: user.email, sub: user._id };
+    const access_token = this.jwtService.sign(payload);
+
     return {
-      message: 'User Info from Google',
-      user: req.user
+      access_token,
+      user: {
+        id: user._id,
+        email: user.email,
+        name: user.name,
+        avatar: user.avatar, // Avatar từ cơ sở dữ liệu
+      },
     };
   }
 }

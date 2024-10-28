@@ -31,18 +31,18 @@ export class AuthController {
   @Get('google/callback')
   @UseGuards(AuthGuard('google'))
   async googleAuthCallback(@Req() req, @Res() res) {
-      // Xử lý quá trình login Google
-      const user = await this.authService.googleLogin(req);
-  
-      if (user) {
-          // Chuyển hướng về /home sau khi đăng nhập thành công
-          return res.redirect('http://localhost:3000/home');
-      } else {
-          // Xử lý lỗi nếu không có user trả về
-          return res.redirect('http://localhost:3000/login');
-      }
-  }  
-  
+    const result = await this.authService.googleLogin(req);
+
+    if (result) {
+      const { access_token, user } = result;
+      return res.redirect(`http://localhost:3000/login/callback?token=${access_token}&email=${user.email}&avatar=${user.avatar}`);
+    } else {
+      return res.redirect('http://localhost:3000/login');
+    }
+  }
+
+
+
   @Get('github')
   @UseGuards(AuthGuard('github'))
   // eslint-disable-next-line @typescript-eslint/no-unused-vars

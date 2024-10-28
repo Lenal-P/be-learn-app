@@ -1,26 +1,29 @@
 /* eslint-disable prettier/prettier */
 // jwt.strategy.ts
-
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
-import { UsersService } from '../users/users.service';
+import { ConfigService } from '@nestjs/config';
+import { UsersService } from 'src/users/users.service';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
-  constructor(private readonly usersService: UsersService) {
+  constructor(
+    private readonly usersService: UsersService,
+    private readonly configService: ConfigService,
+  ) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: process.env.JWT_SECRET || 'yourSecretKey',
+      secretOrKey: configService.get<string>('JWT_SECRET'),
     });
   }
 
   async validate(payload: any) {
     const user = await this.usersService.findOneByEmail(payload.email);
     if (!user) {
-      throw new UnauthorizedException();
+      throw new Error('User not found');
     }
-    return { userId: payload.sub, email: payload.email };
+    return user; // Trả về user, sẽ được thêm vào request (req.user)
   }
 }

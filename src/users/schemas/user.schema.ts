@@ -9,6 +9,7 @@ export type UserDocument = User & Document;
 @Schema({ timestamps: true })
 export class User {
   [x: string]: any;
+
   @Prop({ required: true, unique: true })
   email: string;
 
@@ -27,12 +28,22 @@ export class User {
   @Prop({ type: String })
   resetOtp: string;
 
-  @Prop({ type: Date }) 
+  @Prop({ type: Date })
   resetOtpExpire: Date;
 
-  constructor(user: User) {
-    this._id = user._id.toString();
+  @Prop({ type: String })
+  avatar?: string;
+
+  constructor(user: Partial<User>) { // Sử dụng Partial để cho phép tạo đối tượng không đầy đủ
+    this._id = user._id ? user._id.toString() : undefined; // Chỉ lấy _id nếu có
     this.email = user.email;
+    this.password = user.password;
+    this.role = user.role || 'user'; // Giá trị mặc định cho role
+    this.isActive = user.isActive || false; // Giá trị mặc định cho isActive
+    this.createdAt = user.createdAt || new Date(); // Giá trị mặc định cho createdAt
+    this.resetOtp = user.resetOtp;
+    this.resetOtpExpire = user.resetOtpExpire;
+    this.avatar = user.avatar; // Lưu avatar
   }
 }
 
